@@ -1,0 +1,20 @@
+{
+  "name": "torn-losses-bot",
+  "version": "1.0.0",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+ "dependencies": {
+    "discord.js": "^14.16.3",
+    "discord-api-types": "^0.37.119",
+    "better-sqlite3": "^12.10.0",
+    "axios": "^1.7.9",
+    "dotenv": "^16.4.7",
+    "node-cron": "^3.0.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}

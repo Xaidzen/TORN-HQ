@@ -1,0 +1,36 @@
+# Node modules
+node_modules/
+
+# Environment files
+.env
+
+# Database files
+database/losses-bot.db
+
+# Log files
+*.log
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# NPM debug log
+npm-debug.log*
+
+# Yarn debug log
+yarn-debug.log*
+yarn-error.log*
+
+# Coverage reports
+coverage/
+
+# Test reports
+test-results/
+
+# Build output
+dist/
+build/
