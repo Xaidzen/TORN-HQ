@@ -57,7 +57,7 @@ module.exports = {
           new ButtonBuilder()
             .setLabel('Create API Key on Torn')
             .setStyle(ButtonStyle.Link)
-            .setURL('https://www.torn.com/preferences.php#tab=api?step=addNewKey&title=Losses+and+More&user=attacks&company=profile%2Ccompanies%2Cdetailed%2Cemployees%2Cnews'),
+            .setURL('https://www.torn.com/preferences.php#tab=api?step=addNewKey&user=faction,basic,bounties,discord,personalstats,profile,cooldowns,crimes&torn=attacklog,bounties,crimes&title=Torn%20HQ'),
           new ButtonBuilder()
             .setLabel('Add / Update API Key')
             .setStyle(ButtonStyle.Primary)
