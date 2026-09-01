@@ -176,52 +176,21 @@ async function handleApiKeyButton(interaction) {
 		await interaction.showModal(modal);
 		logger.info(`[API Key Submission] Showed modal instantly to user ${interaction.user.id}`);
 
-	} catch (error) {
-		logger.error(`[API Key Submission] Error showing modal: ${error.message}`);
-		if (!interaction.replied && !interaction.deferred) {
-			await interaction.reply({
-				content: `❌ Error: ${error.message}`,
-				flags: MessageFlags.Ephemeral
-			});
-		}
+} catch (error) {
+    logger.error(`[API KEY] Error handling API key modal: ${error.message}`);
+
+    await interaction.reply({
+        content: `❌ API key validation failed: ${error.message}`,
+        flags: MessageFlags.Ephemeral
+    });
 	}
-}
-
-async function handleApiKeyModal(interaction) {
-	logger.info(`[API KEY] User ${interaction.user.id} submitted API key modal`);
-
-	try {
-		const apiKey = interaction.fields.getTextInputValue('api_key_input');
-		const targetUserId = interaction.customId.replace('api_key_modal_', '');
-
-		if (!apiKey) {
-			logger.warn(`[API KEY] Empty API key from user ${interaction.user.id}`);
-			await interaction.reply({
-				content: 'API key cannot be empty.',
-				flags: MessageFlags.Ephemeral
-			});
-			return;
-		}
-
-		const validationResult = await cryptoHelper.validateApiKey(apiKey);
-		const encryptedApiKey = cryptoHelper.encrypt(apiKey);
-
-		await database.updateUserApiKey(targetUserId, encryptedApiKey);
-
-		await interaction.reply({
-			content: '✅ Your Torn API key has been securely encrypted and linked successfully!',
-			flags: MessageFlags.Ephemeral
-		});
-
-		logger.info(`[API KEY] Successfully saved API key for user ${targetUserId}`);
-
 	} catch (error) {
-		logger.error(`[API KEY] Error handling API key modal: ${error.message}`);
-		await interaction.reply({
-			content: `❌ Invalid key type. Please use the prefilled link button to generate a valid Full Access or Custom API key.`,
-			flags: MessageFlags.Ephemeral
-		});
-	}
+    logger.error(`[API KEY] Error handling API key modal: ${error.message}`);
+
+    await interaction.reply({
+        content: `❌ API key validation failed: ${error.message}`,
+        flags: MessageFlags.Ephemeral
+    });
 }
 
 async function handleRoleToggle(interaction) {
