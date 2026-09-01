@@ -158,7 +158,6 @@ async function handleApiKeyButton(interaction) {
 			return;
 		}
 
-		// Instantly build and serve the modal without blocking API tasks
 		const modal = new ModalBuilder()
 			.setCustomId(`api_key_modal_${targetUserId}`)
 			.setTitle('Torn API Key Submission');
@@ -176,21 +175,64 @@ async function handleApiKeyButton(interaction) {
 		await interaction.showModal(modal);
 		logger.info(`[API Key Submission] Showed modal instantly to user ${interaction.user.id}`);
 
-} catch (error) {
-    logger.error(`[API KEY] Error handling API key modal: ${error.message}`);
-
-    await interaction.reply({
-        content: `❌ API key validation failed: ${error.message}`,
-        flags: MessageFlags.Ephemeral
-    });
-	}
 	} catch (error) {
-    logger.error(`[API KEY] Error handling API key modal: ${error.message}`);
+		logger.error(`[API Key Submission] Error showing modal: ${error.message}`);
+		if (!interaction.replied && !interaction.deferred) {
+			await interaction.reply({
+				content: `❌ Error: ${error.message}`,
+				flags: MessageFlags.Ephemeral
+			});
+		}
+	}
+}
 
-    await interaction.reply({
-        content: `❌ API key validation failed: ${error.message}`,
-        flags: MessageFlags.Ephemeral
-    });
+async function handleApiKeyModal(interaction) {
+	logger.info(`[API KEY] User ${interaction.user.id} submitted API key modal`);
+
+	try {
+		const apiKey = interaction.fields.getTextInputValue('api_key_input').trim();
+		const targetUserId = interaction.customId.replace('api_key_modal_', '');
+
+		if (!apiKey) {
+			logger.warn(`[API KEY] Empty API key from user ${interaction.user.id}`);
+			await interaction.reply({
+				content: '❌ API key cannot be empty.',
+				flags: MessageFlags.Ephemeral
+			});
+			return;
+		}
+
+		logger.info(`[API KEY] Validating API key for user ${targetUserId}`);
+
+		const validationResult = await cryptoHelper.validateApiKey(apiKey);
+
+		if (!validationResult || validationResult.valid !== true) {
+			throw new Error('Torn did not validate this API key');
+		}
+
+		const encryptedApiKey = cryptoHelper.encrypt(apiKey);
+
+		await database.updateUserApiKey(targetUserId, encryptedApiKey);
+
+		await interaction.reply({
+			content: '✅ Your Torn API key has been securely encrypted and linked successfully!',
+			flags: MessageFlags.Ephemeral
+		});
+
+		logger.info(
+			`[API KEY] Successfully saved API key for user ${targetUserId}`
+		);
+
+	} catch (error) {
+		logger.error(
+			`[API KEY] Error handling API key modal: ${error.message}`
+		);
+
+		await interaction.reply({
+			content: `❌ API key validation failed: ${error.message}`,
+			flags: MessageFlags.Ephemeral
+		});
+	}
 }
 
 async function handleRoleToggle(interaction) {
@@ -216,6 +258,7 @@ async function handleRoleToggle(interaction) {
 		};
 
 		const roleId = roleConfig[roleType];
+
 		if (!roleId) {
 			logger.warn(`[ROLE] Role ID for type ${roleType} is not defined in environment variables`);
 			await interaction.reply({
@@ -230,25 +273,31 @@ async function handleRoleToggle(interaction) {
 
 		if (hasRole) {
 			await member.roles.remove(roleId);
+
 			await interaction.reply({
 				content: '👋 Removed the role. You will no longer receive contract pings for this track.',
 				flags: MessageFlags.Ephemeral
 			});
+
 			logger.info(`[ROLE] Removed ${roleType} role from ${interaction.user.id}`);
+
 		} else {
 			await member.roles.add(roleId);
+
 			await interaction.reply({
 				content: '✅ Granted the role! You are now on the notification list for new contracts.',
 				flags: MessageFlags.Ephemeral
 			});
+
 			logger.info(`[ROLE] Added ${roleType} role to ${interaction.user.id}`);
 		}
 
 	} catch (error) {
 		logger.error(`[ROLE] Error handling role toggle: ${error.message}`);
+
 		await interaction.reply({
 			content: `❌ Error toggling role: ${error.message}`,
 			flags: MessageFlags.Ephemeral
 		});
 	}
-} 
+	}
