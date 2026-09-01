@@ -93,11 +93,23 @@ async function handleOrderSelect(interaction) {
 	);
 
 	if (interaction.values[0] === 'order_losses') {
+
 		const userData = await database.getUser(interaction.user.id);
 
-		if (!userData) {
+		const isVerified =
+			userData &&
+			userData.torn_id &&
+			Number(userData.torn_id) > 0 &&
+			userData.torn_name &&
+			userData.torn_name !== 'Unverified';
+
+		logger.info(
+			`[ORDER] Verification check for ${interaction.user.id}: ${isVerified ? 'VERIFIED' : 'NOT VERIFIED'}`
+		);
+
+		if (!isVerified) {
 			logger.warn(
-				`[ORDER] User ${interaction.user.id} not verified`
+				`[ORDER] User ${interaction.user.id} attempted to create an order without verification`
 			);
 
 			await interaction.reply({
@@ -144,12 +156,14 @@ async function handleOrderSelect(interaction) {
 		);
 
 	} else if (interaction.values[0] === 'order_escapes') {
+
 		await interaction.reply({
 			content: 'Escapes feature is coming soon!',
 			flags: MessageFlags.Ephemeral
 		});
 
 	} else if (interaction.values[0] === 'order_bounties') {
+
 		await interaction.reply({
 			content: 'Bounty placement feature is coming soon!',
 			flags: MessageFlags.Ephemeral
@@ -173,277 +187,4 @@ async function handleLossesModal(interaction) {
 
 		if (isNaN(quantity) || quantity <= 0) {
 			logger.warn(
-				`[ORDER] Invalid quantity from user ${interaction.user.id}: ${quantity}`
-			);
-
-			await interaction.reply({
-				content: 'Please enter a valid number for the quantity.',
-				flags: MessageFlags.Ephemeral
-			});
-
-			return;
-		}
-
-		await createTicketChannel(
-			interaction,
-			interaction.user,
-			targetId,
-			quantity,
-			null
-		);
-
-		await interaction.reply({
-			content:
-				'Your order has been created! A private channel has been set up for you.',
-			flags: MessageFlags.Ephemeral
-		});
-
-	} catch (error) {
-		logger.error(
-			`[ORDER] Error handling losses modal: ${error.message}`
-		);
-
-		await interaction.reply({
-			content:
-				'Failed to create your order. Please try again.',
-			flags: MessageFlags.Ephemeral
-		});
-	}
-}
-
-async function handleApiKeyButton(interaction) {
-	try {
-		const targetUserId =
-			interaction.customId.replace(
-				'submit_api_key_btn_',
-				''
-			);
-
-		const isAdmin =
-			interaction.member.permissions.has('Administrator');
-
-		const isStaff =
-			interaction.member.roles.cache.has(
-				process.env.STAFF_ROLE_ID
-			);
-
-		if (
-			interaction.user.id !== targetUserId &&
-			!isAdmin &&
-			!isStaff
-		) {
-			await interaction.reply({
-				content:
-					'❌ You can only submit API keys for yourself or if you are admin/staff.',
-				flags: MessageFlags.Ephemeral
-			});
-
-			return;
-		}
-
-		const modal = new ModalBuilder()
-			.setCustomId(`api_key_modal_${targetUserId}`)
-			.setTitle('Torn API Key Submission');
-
-		const apiKeyInput = new TextInputBuilder()
-			.setCustomId('api_key_input')
-			.setLabel('Enter your Torn API Key')
-			.setStyle(TextInputStyle.Paragraph)
-			.setPlaceholder('Paste your API key here')
-			.setRequired(true);
-
-		const firstActionRow =
-			new ActionRowBuilder().addComponents(apiKeyInput);
-
-		modal.addComponents(firstActionRow);
-
-		await interaction.showModal(modal);
-
-		logger.info(
-			`[API Key Submission] Showed modal instantly to user ${interaction.user.id}`
-		);
-
-	} catch (error) {
-		logger.error(
-			`[API Key Submission] Error showing modal: ${error.message}`
-		);
-
-		if (
-			!interaction.replied &&
-			!interaction.deferred
-		) {
-			await interaction.reply({
-				content: `❌ Error: ${error.message}`,
-				flags: MessageFlags.Ephemeral
-			});
-		}
-	}
-}
-
-async function handleApiKeyModal(interaction) {
-	logger.info(
-		`[API KEY] User ${interaction.user.id} submitted API key modal`
-	);
-
-	try {
-		const apiKey =
-			interaction.fields
-				.getTextInputValue('api_key_input')
-				.trim();
-
-		const targetUserId =
-			interaction.customId.replace(
-				'api_key_modal_',
-				''
-			);
-
-		if (!apiKey) {
-			logger.warn(
-				`[API KEY] Empty API key from user ${interaction.user.id}`
-			);
-
-			await interaction.reply({
-				content: 'API key cannot be empty.',
-				flags: MessageFlags.Ephemeral
-			});
-
-			return;
-		}
-
-		const validationResult =
-			await cryptoHelper.validateApiKey(apiKey);
-
-		if (
-			!validationResult ||
-			validationResult.valid !== true
-		) {
-			throw new Error(
-				'Torn did not validate this API key'
-			);
-		}
-
-		const encryptedApiKey =
-			cryptoHelper.encrypt(apiKey);
-
-		await database.updateUserApiKey(
-			targetUserId,
-			encryptedApiKey
-		);
-
-		await interaction.reply({
-			content:
-				'✅ Your Torn API key has been securely encrypted and linked successfully!',
-			flags: MessageFlags.Ephemeral
-		});
-
-		logger.info(
-			`[API KEY] Successfully saved API key for user ${targetUserId}`
-		);
-
-	} catch (error) {
-		logger.error(
-			`[API KEY] Error handling API key modal: ${error.message}`
-		);
-
-		await interaction.reply({
-			content:
-				`❌ API key validation failed: ${error.message}`,
-			flags: MessageFlags.Ephemeral
-		});
-	}
-}
-
-async function handleRoleToggle(interaction) {
-	try {
-		const userData =
-			await database.getUser(interaction.user.id);
-
-		if (!userData || !userData.api_key) {
-			logger.warn(
-				`[ROLE] User ${interaction.user.id} attempted role toggle but has no api_key in DB`
-			);
-
-			await interaction.reply({
-				content:
-					'❌ You must link a valid Custom or Full Access API key using the panel above before you can select a service provider role.',
-				flags: MessageFlags.Ephemeral
-			});
-
-			return;
-		}
-
-		const roleType =
-			interaction.customId.replace(
-				'toggle_role_',
-				''
-			);
-
-		const roleConfig = {
-			losses: process.env.LOSSES_ROLE_ID,
-			escapes: process.env.ESCAPES_ROLE_ID,
-			bounties: process.env.BOUNTIES_ROLE_ID,
-			detective: process.env.DETECTIVE_ROLE_ID
-		};
-
-		const roleId = roleConfig[roleType];
-
-		if (!roleId) {
-			logger.warn(
-				`[ROLE] Role ID for type ${roleType} is not defined in environment variables`
-			);
-
-			await interaction.reply({
-				content: '❌ Invalid role type.',
-				flags: MessageFlags.Ephemeral
-			});
-
-			return;
-		}
-
-		const member =
-			await interaction.guild.members.fetch(
-				interaction.user.id
-			);
-
-		const hasRole =
-			member.roles.cache.has(roleId);
-
-		if (hasRole) {
-			await member.roles.remove(roleId);
-
-			await interaction.reply({
-				content:
-					'👋 Removed the role. You will no longer receive contract pings for this track.',
-				flags: MessageFlags.Ephemeral
-			});
-
-			logger.info(
-				`[ROLE] Removed ${roleType} role from ${interaction.user.id}`
-			);
-
-		} else {
-			await member.roles.add(roleId);
-
-			await interaction.reply({
-				content:
-					'✅ Granted the role! You are now on the notification list for new contracts.',
-				flags: MessageFlags.Ephemeral
-			});
-
-			logger.info(
-				`[ROLE] Added ${roleType} role to ${interaction.user.id}`
-			);
-		}
-
-	} catch (error) {
-		logger.error(
-			`[ROLE] Error handling role toggle: ${error.message}`
-		);
-
-		await interaction.reply({
-			content:
-				`❌ Error toggling role: ${error.message}`,
-			flags: MessageFlags.Ephemeral
-		});
-	}
-		}
+				`[ORDER] Invalid quantity from user ${interaction.user.id}:
